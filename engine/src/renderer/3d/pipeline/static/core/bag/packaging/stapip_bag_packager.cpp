@@ -12,6 +12,7 @@
 #include <math.h>
 #include "debug/debug.hpp"
 #include "renderer/3d/pipeline/static/core/bag/packaging/stapip_bag_packager.hpp"
+#include "memory/frame_arena.hpp"
 
 namespace Tyra {
 
@@ -34,7 +35,7 @@ StaPipBagPackage* StaPipBagPackager::create(u16* o_size, StaPipBag* data,
               maxVertCount, " verts. Provided \"", size, "\"");
 
   *o_size = ceil(data->count / static_cast<float>(size));
-  StaPipBagPackage* result = new StaPipBagPackage[*o_size];
+  StaPipBagPackage* result = g_frameArena.allocArray<StaPipBagPackage>(*o_size);
 
   for (u16 i = 0; i < *o_size; i++) {
     result[i].bag = data;
@@ -74,7 +75,7 @@ StaPipBagPackage* StaPipBagPackager::create(u16* o_count,
               maxVertCount, " verts. Provided \"", size, "\"");
 
   *o_count = ceil(pkg.size / static_cast<float>(size));
-  auto* result = new StaPipBagPackage[*o_count];
+  auto* result = g_frameArena.allocArray<StaPipBagPackage>(*o_count);
 
   for (u16 i = 0; i < *o_count; i++) {
     result[i].bag = pkg.bag;

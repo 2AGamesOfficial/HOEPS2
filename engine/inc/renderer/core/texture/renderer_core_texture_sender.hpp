@@ -39,6 +39,12 @@ class RendererCoreTextureSender {
   TextureBpp getBppByPsm(const u32& psm);
   texbuffer_t* allocateTextureCore(const Texture* t_texture);
   texbuffer_t* allocateTextureClut(const Texture* t_texture);
+  // Pool of texbuffer_t to avoid heap churn on VRAM eviction.
+  static const int POOL_SIZE = 128;
+  texbuffer_t pool[POOL_SIZE];
+  bool poolUsed[POOL_SIZE];
+  texbuffer_t* poolAcquire();
+  void poolRelease(texbuffer_t* p);
 };
 
 }  // namespace Tyra

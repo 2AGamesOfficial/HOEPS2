@@ -66,6 +66,11 @@ class AudioAdpcm {
    * @param t_vol Value 0-100
    * @param t_ch Channel (0-23)
    */
+  /**
+   * Play sample on first free channel in pool [base, base+size). Round-robin if all busy.
+   */
+  AdpcmResult playPooled(audsrv_adpcm_t* t_adpcm, const s8& t_base, const s8& t_size);
+
   void setVolume(const u8& t_vol, const s8& t_ch) {
     audsrv_adpcm_set_volume(t_ch, t_vol);
   }

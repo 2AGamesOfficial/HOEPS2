@@ -9,6 +9,7 @@
 */
 
 #include "renderer/3d/pipeline/dynamic/dynamic_pipeline.hpp"
+#include "memory/frame_arena.hpp"
 #include "renderer/3d/pipeline/shared/bag/pipeline_info_bag.hpp"
 
 namespace Tyra {
@@ -70,7 +71,7 @@ void DynamicPipeline::render(const DynamicMesh* mesh,
   bool optionsManuallyAllocated = false;
 
   if (!options) {
-    options = new DynPipOptions();
+    options = g_frameArena.alloc<DynPipOptions>();
     optionsManuallyAllocated = true;
   }
 
@@ -89,7 +90,7 @@ void DynamicPipeline::render(const DynamicMesh* mesh,
 
   if (options && options->lighting) {
     setLightingColorsCache(options->lighting);
-    dirLights = new PipelineDirLightsBag(true);
+    dirLights = g_frameArena.alloc<PipelineDirLightsBag>(true);
     dirLights->setLightsManually(colorsCache,
                                  options->lighting->directionalDirections);
   }
@@ -154,16 +155,12 @@ void DynamicPipeline::render(const DynamicMesh* mesh,
     bufferIndex = 0;
     core.begin(infoBag);
 
-    delete colorBag;
+    // arena handles delete colorBag
   }
 
-  if (dirLights) {
-    delete dirLights;
-  }
-
-  delete infoBag;
-
-  if (optionsManuallyAllocated) delete options;
+  // arena handles dirLights, infoBag, options
+  (void)dirLights;
+  (void)optionsManuallyAllocated;
 }
 
 void DynamicPipeline::setBuffer(DynPipBag* buffers, DynPipBag* buffer,
@@ -174,7 +171,7 @@ void DynamicPipeline::setBuffer(DynPipBag* buffers, DynPipBag* buffer,
   if (isEndOf1stDBuffer || isEndOf2ndDBuffer) {
     u32 offset = isEndOf1stDBuffer ? 0 : halfBuffersCount;
 
-    DynPipBag** sendBuffers = new DynPipBag*[halfBuffersCount];
+    DynPipBag** sendBuffers = g_frameArena.allocArray<DynPipBag*>(halfBuffersCount);
 
     for (u32 i = 0; i < halfBuffersCount; i++)
       sendBuffers[i] = &buffers[offset + i];
@@ -199,14 +196,14 @@ void DynamicPipeline::sendRestOfBuffers(DynPipBag* buffers,
 
   if (size <= 0) return;
 
-  DynPipBag** sendBuffers = new DynPipBag*[size];
+  DynPipBag** sendBuffers = g_frameArena.allocArray<DynPipBag*>(size);
   for (u32 i = 0; i < size; i++) {
     sendBuffers[i] = &buffers[offset + i];
   }
 
   core.render(sendBuffers, size);
 
-  delete[] sendBuffers;
+  // arena handles delete[] sendBuffers
 }
 
 void DynamicPipeline::setBuffersDefaultVars(DynPipBag* buffers,
@@ -226,19 +223,14 @@ void DynamicPipeline::setBuffersColorBag(DynPipBag* buffers,
 }
 
 void DynamicPipeline::freeBuffer(DynPipBag* bag) {
-  if (bag->texture) {
-    delete bag->texture;
-  }
-
-  if (bag->lighting) {
-    delete bag->lighting;
-  }
+  // Arena handles freeing — no-op
+  (void)bag;
 }
 
 DynPipInfoBag* DynamicPipeline::getInfoBag(const DynamicMesh* mesh,
                                            const DynPipOptions* options,
                                            M4x4* model) const {
-  auto* result = new DynPipInfoBag();
+  auto* result = g_frameArena.alloc<DynPipInfoBag>();
 
   result->antiAliasingEnabled = options->antiAliasingEnabled;
   result->blendingEnabled = options->blendingEnabled;
@@ -264,7 +256,7 @@ void DynamicPipeline::addVertices(const MeshMaterialFrame* materialFrameFrom,
 
 DynPipColorBag* DynamicPipeline::getColorBag(
     const MeshMaterial* material) const {
-  auto* result = new DynPipColorBag();
+  auto* result = g_frameArena.alloc<DynPipColorBag>();
   result->single = &material->ambient;
   return result;
 }
@@ -274,7 +266,7 @@ DynPipTextureBag* DynamicPipeline::getTextureBag(
     const MeshMaterialFrame* materialFrameTo, const u32& startIndex) {
   if (!materialFrameFrom->textureCoords || texture == nullptr) return nullptr;
 
-  auto* result = new DynPipTextureBag();
+  auto* result = g_frameArena.alloc<DynPipTextureBag>();
 
   result->texture = texture;
 
@@ -293,7 +285,7 @@ DynPipLightingBag* DynamicPipeline::getLightingBag(
       options->lighting == nullptr)
     return nullptr;
 
-  auto* result = new DynPipLightingBag();
+  auto* result = g_frameArena.alloc<DynPipLightingBag>();
 
   result->lightMatrix = model;
   result->dirLights = dirLightsBag;

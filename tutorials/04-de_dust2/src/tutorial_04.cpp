@@ -47,14 +47,14 @@ void Tutorial04::loop() {
 
 void Tutorial04::loadMesh() {
   ObjLoaderOptions options;
-  options.scale = 200.0F;
+  options.scale = 100.0F;
 
   /**
    * Load mesh data
    * Texture file names are loaded from .mtl file (map_Kd field).
    */
   auto data =
-      ObjLoader::load(FileUtils::fromCwd("de_dust2/de_dust2.obj"), options);
+      ObjLoader::load(FileUtils::fromCwd("rockplatform/RockPlatform.obj"), options);
 
   /** Create mesh with loaded data */
   mesh = std::make_unique<StaticMesh>(data.get());
@@ -72,7 +72,7 @@ void Tutorial04::loadMesh() {
    * proper extension.
    */
   engine->renderer.getTextureRepository().addByMesh(
-      mesh.get(), FileUtils::fromCwd("de_dust2/"), "png");
+      mesh.get(), FileUtils::fromCwd("rockplatform/"), "png");
 }
 
 }  // namespace Tyra

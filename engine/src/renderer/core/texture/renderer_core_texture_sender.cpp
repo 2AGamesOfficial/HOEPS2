@@ -19,6 +19,7 @@ RendererCoreTextureSender::~RendererCoreTextureSender() {}
 void RendererCoreTextureSender::init(Path3* t_path3, RendererCoreGS* t_gs) {
   gs = t_gs;
   path3 = t_path3;
+  for (int i = 0; i < POOL_SIZE; i++) poolUsed[i] = false;
   TYRA_LOG("Renderer texture initialized!");
 }
 
@@ -45,17 +46,17 @@ void RendererCoreTextureSender::deallocate(
     const RendererCoreTextureBuffers& texBuffers) {
   if (texBuffers.clut != nullptr && texBuffers.clut->width > 0) {
     gs->vram.free(texBuffers.clut->address);
-    delete texBuffers.clut;
+    poolRelease(texBuffers.clut);
   }
 
   gs->vram.free(texBuffers.core->address);
 
-  delete texBuffers.core;
+  poolRelease(texBuffers.core);
 }
 
 texbuffer_t* RendererCoreTextureSender::allocateTextureCore(
     const Texture* t_texture) {
-  auto* result = new texbuffer_t;
+  auto* result = poolAcquire();
   const auto* core = t_texture->core;
 
   switch (core->psm) {
@@ -86,7 +87,7 @@ texbuffer_t* RendererCoreTextureSender::allocateTextureCore(
 
 texbuffer_t* RendererCoreTextureSender::allocateTextureClut(
     const Texture* t_texture) {
-  auto* result = new texbuffer_t;
+  auto* result = poolAcquire();
   const auto* clut = t_texture->clut;
 
   int clutWidth = clut->width <= 64 ? 64 : clut->width;
@@ -121,3 +122,18 @@ TextureBpp RendererCoreTextureSender::getBppByPsm(const u32& psm) {
 }
 
 }  // namespace Tyra
+
+namespace Tyra {
+texbuffer_t* RendererCoreTextureSender::poolAcquire() {
+  for (int i = 0; i < POOL_SIZE; i++) {
+    if (!poolUsed[i]) { poolUsed[i] = true; return &pool[i]; }
+  }
+  TYRA_ASSERT(false, "Texture pool exhausted!");
+  return nullptr;
+}
+void RendererCoreTextureSender::poolRelease(texbuffer_t* p) {
+  for (int i = 0; i < POOL_SIZE; i++) {
+    if (&pool[i] == p) { poolUsed[i] = false; return; }
+  }
+}
+}

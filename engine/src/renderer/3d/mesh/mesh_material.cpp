@@ -80,7 +80,7 @@ MeshMaterial::MeshMaterial(const MeshMaterial& mesh) {
   lightmapFlag = mesh.lightmapFlag;
   name = mesh.name;
   textureName = mesh.textureName;
-  ambient.set(128.0F, 128.0F, 128.0F, 128.0F);
+  ambient.set(mesh.ambient);
 
   for (u32 i = 0; i < mesh.frames.size(); i++) {
     frames.push_back(new MeshMaterialFrame(*mesh.frames[i]));

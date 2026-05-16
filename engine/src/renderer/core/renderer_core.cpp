@@ -10,6 +10,7 @@
 
 #include "renderer/core/renderer_core.hpp"
 #include "thread/threading.hpp"
+#include "memory/frame_arena.hpp"
 
 namespace Tyra {
 
@@ -43,6 +44,7 @@ void RendererCore::endFrame() {
   Threading::switchThread();
   if (isFrameLimitOn) graph_wait_vsync();
   gs.flipBuffers();
+  g_frameArena.reset();
 }
 
 }  // namespace Tyra

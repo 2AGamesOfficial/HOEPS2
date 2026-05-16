@@ -1,0 +1,42 @@
+# Blender 4.0.2 MTL File: 'Guns.blend'
+# www.blender.org
+
+newmtl Material.010
+Ns 113.140480
+Ka 0.545455 0.545455 0.545455
+Ks 0.004545 0.004545 0.004545
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd ShotgunAlbedo.png
+
+newmtl Material.011
+Ns 112.896019
+Ka 0.545000 0.545000 0.545000
+Ks 0.005000 0.005000 0.005000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd ShotgunAlbedo.png
+
+newmtl Material.012
+Ns 112.896019
+Ka 0.545000 0.545000 0.545000
+Ks 0.005000 0.005000 0.005000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd ShotgunAlbedo.png
+
+newmtl Material.013
+Ns 112.896019
+Ka 1.000000 1.000000 1.000000
+Ks 0.000000 0.000000 0.000000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 1
+map_Kd ShotgunAlbedo.png

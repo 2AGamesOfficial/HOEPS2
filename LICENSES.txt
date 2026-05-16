@@ -1,0 +1,42 @@
+HOEPS2
+======
+A PS2 homebrew game. Source game jam project "Hell on Earth" (2020), ported to PlayStation 2.
+Copyright (c) 2026 2A Games
+
+THIRD-PARTY COMPONENTS
+-----------------------
+
+Tyra - Game Engine for PlayStation 2
+  https://github.com/h4570/tyra
+  Copyright (c) Sandro Sobczynski and contributors
+  Licensed under the Apache License, Version 2.0
+  https://www.apache.org/licenses/LICENSE-2.0
+  Modifications made to Tyra source:
+    - engine/src/audio/audio_song.cpp: replaced fopen/fread/fclose/fseek
+      with POSIX open/read/close/lseek to eliminate heap fragmentation leak
+      during WAV streaming.
+    - engine/src/audio/audio_adpcm.cpp: added playPooled() method for
+      round-robin SFX channel allocation with steal-oldest fallback.
+    - engine/src/renderer/core/texture/renderer_core_texture_sender.cpp/.hpp:
+      added 128-slot texbuffer_t pool to avoid per-frame heap allocation.
+    - engine/src/memory/frame_arena.cpp/.hpp: added 64KB bump-pointer arena
+      (g_frameArena) reset each frame via RendererCore::endFrame().
+    - engine/src/renderer/3d/mesh/mesh_material.cpp: MeshMaterial copy
+      constructor now inherits ambient from source material (was previously
+      hardcoded to 128,128,128,128).
+
+ps2sdk - Homebrew PlayStation 2 SDK
+  https://github.com/ps2dev/ps2sdk
+  Copyright (c) ps2dev contributors
+  Licensed under the Academic Free License, Version 2.0
+
+tinyobjloader - .obj/.mtl parser (bundled with Tyra)
+  https://github.com/tinyobjloader/tinyobjloader
+  Copyright (c) Syoyo Fujita and contributors
+  Licensed under the MIT License
+
+TOOLS USED (no license obligation, credited as courtesy)
+---------------------------------------------------------
+Blender   - 3D modeling/animation              https://www.blender.org
+Audacity  - audio editing                      https://www.audacityteam.org
+GIMP      - texture editing                    https://www.gimp.org

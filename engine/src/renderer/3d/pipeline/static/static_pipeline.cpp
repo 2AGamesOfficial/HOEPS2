@@ -9,6 +9,7 @@
 */
 
 #include "renderer/3d/pipeline/static/static_pipeline.hpp"
+#include "memory/frame_arena.hpp"
 #include "debug/debug.hpp"
 #include "renderer/3d/pipeline/static/core/bag/stapip_info_bag.hpp"
 #include <memory>
@@ -53,13 +54,13 @@ void StaticPipeline::render(const StaticMesh* mesh,
   bool optionsManuallyAllocated = false;
 
   if (!options) {
-    options = new StaPipOptions();
+    options = g_frameArena.alloc<StaPipOptions>();
     optionsManuallyAllocated = true;
   }
 
   auto model = mesh->getModelMatrix();
   auto* infoBag = getInfoBag(mesh, options, &model);
-  auto dirLightsBag = std::make_unique<PipelineDirLightsBag>(true);
+  auto* dirLightsBag = g_frameArena.alloc<PipelineDirLightsBag>(true);
 
   TYRA_ASSERT(
       !(options->frustumCulling != PipelineFrustumCulling_Precise &&
@@ -77,10 +78,6 @@ void StaticPipeline::render(const StaticMesh* mesh,
     if (frame->bbox->frustumCheck(
             rendererCore->renderer3D.frustumPlanes.getAll(), model) ==
         CoreBBoxFrustum::OUTSIDE_FRUSTUM) {
-      if (options && optionsManuallyAllocated) {
-        delete options;
-      }
-      delete infoBag;
       return;
     }
   }
@@ -96,16 +93,14 @@ void StaticPipeline::render(const StaticMesh* mesh,
     bag.color = getColorBag(material, materialFrame);
     bag.texture = getTextureBag(material, materialFrame);
     bag.lighting =
-        getLightingBag(materialFrame, dirLightsBag.get(), &model, options);
+        getLightingBag(materialFrame, dirLightsBag, &model, options);
 
     core.render(&bag);
 
     deallocDrawBags(&bag, material);
   }
 
-  delete infoBag;
-
-  if (optionsManuallyAllocated) delete options;
+  (void)optionsManuallyAllocated;
 }
 
 void StaticPipeline::addVertices(const MeshMaterialFrame* materialFrame,
@@ -117,7 +112,7 @@ void StaticPipeline::addVertices(const MeshMaterialFrame* materialFrame,
 StaPipInfoBag* StaticPipeline::getInfoBag(const StaticMesh* mesh,
                                           const StaPipOptions* options,
                                           M4x4* model) const {
-  auto* result = new StaPipInfoBag();
+  auto* result = g_frameArena.alloc<StaPipInfoBag>();
 
   result->antiAliasingEnabled = options->antiAliasingEnabled;
   result->blendingEnabled = options->blendingEnabled;
@@ -138,7 +133,7 @@ StaPipInfoBag* StaticPipeline::getInfoBag(const StaticMesh* mesh,
 StaPipColorBag* StaticPipeline::getColorBag(
     const MeshMaterial* material,
     const MeshMaterialFrame* materialFrame) const {
-  auto* result = new StaPipColorBag();
+  auto* result = g_frameArena.alloc<StaPipColorBag>();
 
   if (material->lightmapFlag) {
     result->many = materialFrame->colors;
@@ -154,7 +149,7 @@ StaPipTextureBag* StaticPipeline::getTextureBag(
   if (!materialFrame->textureCoords || !material->textureName.has_value())
     return nullptr;
 
-  auto* result = new StaPipTextureBag();
+  auto* result = g_frameArena.alloc<StaPipTextureBag>();
 
   result->texture =
       rendererCore->texture.repository.getByMeshMaterialId(material->id);
@@ -176,7 +171,7 @@ StaPipLightingBag* StaticPipeline::getLightingBag(
       options->lighting == nullptr)
     return nullptr;
 
-  auto* result = new StaPipLightingBag();
+  auto* result = g_frameArena.alloc<StaPipLightingBag>();
 
   result->dirLights = dirLightsBag;
   result->lightMatrix = model;
@@ -200,15 +195,8 @@ void StaticPipeline::setLightingColorsCache(
 
 void StaticPipeline::deallocDrawBags(StaPipBag* bag,
                                      const MeshMaterial* material) const {
-  if (bag->texture) {
-    delete bag->texture;
-  }
-
-  if (bag->lighting) {
-    delete bag->lighting;
-  }
-
-  delete bag->color;
+  // Arena handles freeing — no-op
+  (void)bag; (void)material;
 }
 
 }  // namespace Tyra

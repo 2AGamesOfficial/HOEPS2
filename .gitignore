@@ -1,33 +1,16 @@
-# ---
-
-# Prerequisites
-*.d
-
-# Compiled Object files
-*.slo
-*.lo
+assets/
+demo/
+tutorials/
+docs/
+template/
+engine.backup-pre-arena/
+cd/
+re/
+isJoined/
+**/obj/
 *.o
-*.vsm
-
-# Precompiled Headers
-*.gch
-*.pch
-
-# Compiled Dynamic libraries
-*.so
-*.dylib
-*.dll
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executables
-*.exe
-*.out
-*.app
-*.erl
-*.elf
-*.irx
+*.swp
+.vscode/
+.idea/
+.DS_Store
+*.log

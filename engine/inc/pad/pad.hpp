@@ -28,10 +28,13 @@ struct PadJoy {
 /** Class responsible for player pad */
 class Pad {
  public:
-  Pad();
+  Pad(u8 t_port = 0);
   ~Pad();
 
-  void init();
+  /** Trigger rumble. small/big=0-255, call each frame to keep active. */
+  void setRumble(u8 small, u8 big);
+  bool init();
+  bool isReady = false;
   void update();
 
   inline const PadButtons& getClicked() const { return clicked; }

@@ -39,7 +39,7 @@ void Engine::initAll(const bool& loadUsbDriver) {
   srand(time(nullptr));
   irx.loadAll(loadUsbDriver, info.writeLogsToFile);
   renderer.init();
-  banner.show(&renderer);
+  // banner.show(&renderer);
   audio.init();
   pad.init();
 }

@@ -20,7 +20,9 @@
 namespace Tyra {
 
 /** Init vars, load modules, opens pad port and initializes pad */
-Pad::Pad() {}
+Pad::Pad(u8 t_port) {
+  this->port = t_port;
+}
 
 Pad::~Pad() {}
 
@@ -28,16 +30,20 @@ Pad::~Pad() {}
 // Methods
 // ----
 
-void Pad::init() {
+bool Pad::init() {
   this->oldPad = 0;
   padInit(0);
-  this->port = 0;  // 0 -> Connector 1, 1 -> Connector 2
+  // this->port set in ctor (0 = port 1, 1 = port 2)
   this->slot = 0;  // Always zero if not using multitap
 
   this->ret = padPortOpen(this->port, this->slot, padBuf);
-  TYRA_ASSERT(this->ret != 0,
-              "padPortOpen failed! padPortOpen returned: ", this->ret);
-  TYRA_ASSERT(this->initPad(), "initPad failed!");
+  if (this->ret == 0) { TYRA_LOG("padPortOpen failed for port ", (int)this->port); return false; }
+  if (this->port == 0) {
+    TYRA_ASSERT(this->initPad(), "initPad failed!"); this->isReady = true; return true;
+  } else {
+    if (!this->initPad()) { TYRA_LOG("initPad failed for port ", (int)this->port); return false; }
+    this->isReady = true; return true;
+  }
 }
 
 /** Wait when pad will be ready (stable and ready) */
@@ -47,7 +53,10 @@ int Pad::waitPadReady() {
   char* stateString = new char[16];
   state = padGetState(this->port, this->slot);
   lastState = -1;
+  int _polls = 0;
+  int _maxPolls = (this->port == 0) ? 1000000000 : 200000;
   while ((state != PAD_STATE_STABLE) && (state != PAD_STATE_FINDCTP1)) {
+    if (++_polls > _maxPolls) { TYRA_LOG("Pad port timed out"); delete[] stateString; return -1; }
     if (state != lastState) {
       padStateInt2String(state, stateString);
       TYRA_LOG("Pad state changed");
@@ -67,10 +76,15 @@ int Pad::waitPadReady() {
 /** Initializes and checks type of pad */
 int Pad::initPad() {
   TYRA_LOG("Initializing pad");
-  this->waitPadReady();
+  if (this->waitPadReady() < 0) return 0;
 
   int modes = padInfoMode(this->port, this->slot, PAD_MODETABLE, -1);
-  TYRA_ASSERT(modes, "Connected device is not a dual shock controller!");
+  if (this->port == 0) {
+    TYRA_ASSERT(modes, "Connected device is not a dual shock controller!");
+  } else if (!modes) {
+    TYRA_LOG("Port skipping no pad");
+    return 0;
+  }
 
   // Verify that the controller has a DUAL SHOCK mode
   int i = 0;
@@ -81,12 +95,20 @@ int Pad::initPad() {
     i++;
   } while (i < modes);
 
-  TYRA_ASSERT(i < modes, "Connected device is not a dual shock controller!");
+  if (this->port == 0) {
+    TYRA_ASSERT(i < modes, "Connected device is not a dual shock controller!");
+  } else if (i >= modes) {
+    return 0;
+  }
 
   // If ExId != 0x0 => This controller has actuator engines
   // This check should always pass if the Dual Shock test above passed
   this->ret = padInfoMode(this->port, this->slot, PAD_MODECUREXID, 0);
-  TYRA_ASSERT(this->ret, "Connected device is not a dual shock controller!");
+  if (this->port == 0) {
+    TYRA_ASSERT(this->ret, "Connected device is not a dual shock controller!");
+  } else if (!this->ret) {
+    return 0;
+  }
 
   TYRA_LOG("Enabling dual shock functions.");
 
@@ -116,6 +138,18 @@ int Pad::initPad() {
   this->waitPadReady();
   TYRA_LOG("Pad initialized!");
   return 1;
+}
+
+void Pad::setRumble(u8 small, u8 big) {
+  if (actuators == 0) return;
+  u8 buf[6];
+  buf[0] = small;
+  buf[1] = big;
+  buf[2] = 0;
+  buf[3] = 0;
+  buf[4] = 0;
+  buf[5] = 0;
+  padSetActDirect(this->port, this->slot, (char*)buf);
 }
 
 /** Updates state of joys/buttons. Called by engine */

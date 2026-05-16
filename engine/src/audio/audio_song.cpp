@@ -14,6 +14,8 @@
 #include <malloc.h>
 #include <cstdlib>
 #include <audsrv.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 namespace Tyra {
 
@@ -26,6 +28,7 @@ AudioSong::AudioSong() {
 
   songLoaded = false;
   songPlaying = false;
+  wav = -1;
   inLoop = false;
   songFinished = false;
 
@@ -46,8 +49,8 @@ void AudioSong::init() {
 
 void AudioSong::load(const char* t_path) {
   if (songLoaded) unloadSong();
-  wav = fopen(t_path, "rb");
-  TYRA_ASSERT(wav != nullptr, "Failed to open wav file!");
+  wav = open(t_path, O_RDONLY);
+  TYRA_ASSERT(wav >= 0, "Failed to open wav file!");
   rewindSongToStart();
   songLoaded = true;
 }
@@ -103,12 +106,12 @@ void AudioSong::initSema() {
  */
 void AudioSong::unloadSong() {
   songLoaded = false;
-  fclose(wav);
+  close(wav); wav = -1;
 }
 
 /** Fseek on wav. */
 void AudioSong::rewindSongToStart() {
-  if (wav != nullptr) fseek(wav, 0x30, SEEK_SET);
+  if (wav >= 0) lseek(wav, 0x30, SEEK_SET);
   chunkReadStatus = 0;
   songFinished = false;
 }
@@ -154,7 +157,7 @@ void AudioSong::work() {
       songListeners[i]->listener->onAudioTick();
   }
 
-  chunkReadStatus = fread(chunk, 1, chunkSize, wav);
+  chunkReadStatus = read(wav, chunk, chunkSize);
 
   if (chunkReadStatus < (s32)chunkSize) songFinished = true;
 }

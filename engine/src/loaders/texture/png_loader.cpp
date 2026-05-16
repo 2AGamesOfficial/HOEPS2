@@ -35,60 +35,98 @@ TextureBuilderData* PngLoader::load(const char* fullPath) {
 
   auto filename = FileUtils::getFilenameFromPath(path);
 
-  FILE* file = fopen(fullPath, "rb");
-  TYRA_ASSERT(file != nullptr, "Failed to load ", fullPath);
+  const int MAX_ATTEMPTS = 3;
+  for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    FILE* file = fopen(fullPath, "rb");
+    if (file == nullptr) {
+      if (attempt == MAX_ATTEMPTS) {
+        TYRA_TRAP("Failed to load ", fullPath);
+      }
+      TYRA_WARN("PNG fopen failed for ", filename, " (attempt ", attempt, "/", MAX_ATTEMPTS, "), retrying...");
+      continue;
+    }
 
-  png_structp pngPtr;
-  png_infop infoPtr;
-  png_uint_32 width, height;
-  png_bytep* rowPointers = nullptr;
+    png_structp pngPtr;
+    png_infop infoPtr;
+    png_uint_32 width, height;
+    png_bytep* rowPointers = nullptr;
 
-  u32 sigRead = 0;
-  int bitDepth, colorType, interlaceType;
+    u32 sigRead = 0;
+    int bitDepth, colorType, interlaceType;
 
-  pngPtr = png_create_read_struct(PNG_LIBPNG_VER_STRING, (png_voidp) nullptr,
-                                  nullptr, nullptr);
-  TYRA_ASSERT(pngPtr, "PNG read struct init failed for: ", filename);
+    pngPtr = png_create_read_struct(PNG_LIBPNG_VER_STRING, (png_voidp) nullptr,
+                                    nullptr, nullptr);
+    if (!pngPtr) {
+      fclose(file);
+      if (attempt == MAX_ATTEMPTS) {
+        TYRA_TRAP("PNG read struct init failed for: ", filename);
+      }
+      TYRA_WARN("PNG read struct init failed for ", filename, " (attempt ", attempt, "/", MAX_ATTEMPTS, "), retrying...");
+      continue;
+    }
 
-  infoPtr = png_create_info_struct(pngPtr);
-  TYRA_ASSERT(infoPtr, "PNG read struct init failed for: ", filename);
+    infoPtr = png_create_info_struct(pngPtr);
+    if (!infoPtr) {
+      png_destroy_read_struct(&pngPtr, nullptr, nullptr);
+      fclose(file);
+      if (attempt == MAX_ATTEMPTS) {
+        TYRA_TRAP("PNG info struct init failed for: ", filename);
+      }
+      TYRA_WARN("PNG info struct init failed for ", filename, " (attempt ", attempt, "/", MAX_ATTEMPTS, "), retrying...");
+      continue;
+    }
 
-  TYRA_ASSERT(!setjmp(png_jmpbuf(pngPtr)), "PNG read error for: ", filename);
+    if (setjmp(png_jmpbuf(pngPtr))) {
+      png_destroy_read_struct(&pngPtr, &infoPtr, nullptr);
+      fclose(file);
+      if (attempt == MAX_ATTEMPTS) {
+        TYRA_TRAP("PNG read error for: ", filename);
+      }
+      TYRA_WARN("PNG read error for ", filename, " (attempt ", attempt, "/", MAX_ATTEMPTS, "), retrying...");
+      continue;
+    }
 
-  png_init_io(pngPtr, file);
-  png_set_sig_bytes(pngPtr, sigRead);
-  png_read_info(pngPtr, infoPtr);
-  png_get_IHDR(pngPtr, infoPtr, &width, &height, &bitDepth, &colorType,
-               &interlaceType, nullptr, nullptr);
+    png_init_io(pngPtr, file);
+    png_set_sig_bytes(pngPtr, sigRead);
+    png_read_info(pngPtr, infoPtr);
+    png_get_IHDR(pngPtr, infoPtr, &width, &height, &bitDepth, &colorType,
+                 &interlaceType, nullptr, nullptr);
 
-  if (bitDepth == 16) png_set_strip_16(pngPtr);
-  if (colorType == PNG_COLOR_TYPE_GRAY && bitDepth < 4) png_set_expand(pngPtr);
+    if (bitDepth == 16) png_set_strip_16(pngPtr);
+    if (colorType == PNG_COLOR_TYPE_GRAY && bitDepth < 4) png_set_expand(pngPtr);
 
-  png_set_filler(pngPtr, 0xff, PNG_FILLER_AFTER);
+    png_set_filler(pngPtr, 0xff, PNG_FILLER_AFTER);
 
-  png_read_update_info(pngPtr, infoPtr);
+    png_read_update_info(pngPtr, infoPtr);
 
-  auto* result = new TextureBuilderData();
-  result->width = width;
-  result->height = height;
-  result->name = filename;
+    auto* result = new TextureBuilderData();
+    result->width = width;
+    result->height = height;
+    result->name = filename;
 
-  auto updatedColorType = png_get_color_type(pngPtr, infoPtr);
+    auto updatedColorType = png_get_color_type(pngPtr, infoPtr);
 
-  if (updatedColorType == PNG_COLOR_TYPE_PALETTE) {
-    handlePalletized(result, pngPtr, infoPtr, rowPointers, bitDepth);
-  } else if (updatedColorType == PNG_COLOR_TYPE_RGB_ALPHA) {
-    handle32bpp(result, pngPtr, infoPtr, rowPointers);
-  } else if (updatedColorType == PNG_COLOR_TYPE_RGB) {
-    handle24bpp(result, pngPtr, infoPtr, rowPointers);
-  } else
-    TYRA_TRAP("This texture depth is not supported!");
+    if (updatedColorType == PNG_COLOR_TYPE_PALETTE) {
+      handlePalletized(result, pngPtr, infoPtr, rowPointers, bitDepth);
+    } else if (updatedColorType == PNG_COLOR_TYPE_RGB_ALPHA) {
+      handle32bpp(result, pngPtr, infoPtr, rowPointers);
+    } else if (updatedColorType == PNG_COLOR_TYPE_RGB) {
+      handle24bpp(result, pngPtr, infoPtr, rowPointers);
+    } else
+      TYRA_TRAP("This texture depth is not supported!");
 
-  png_read_end(pngPtr, nullptr);
-  png_destroy_read_struct(&pngPtr, &infoPtr, nullptr);
-  fclose(file);
+    png_read_end(pngPtr, nullptr);
+    png_destroy_read_struct(&pngPtr, &infoPtr, nullptr);
+    fclose(file);
 
-  return result;
+    if (attempt > 1) {
+      TYRA_WARN("PNG ", filename, " loaded successfully on attempt ", attempt);
+    }
+    return result;
+  }
+
+  TYRA_TRAP("PNG load failed after all attempts: ", filename);
+  return nullptr;
 }
 
 void PngLoader::handle32bpp(TextureBuilderData* result, png_structp pngPtr,

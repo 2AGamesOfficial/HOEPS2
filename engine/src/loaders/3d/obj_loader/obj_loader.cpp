@@ -64,13 +64,42 @@ std::unique_ptr<MeshBuilderData> ObjLoader::load(
         rawFilename + "_" + numbersWithLeadingZeros + "." + extension;
     if (options.animation.count == 1) filePath = path;
 
+    const int MAX_ATTEMPTS = 3;
     tinyobj::ObjReader reader;
+    bool success = false;
 
-    if (!reader.ParseFromFile(filePath, readerConfig)) {
-      if (!reader.Error().empty()) {
-        TYRA_TRAP("TinyObjLoader: ", reader.Error());
+    for (int attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      reader = tinyobj::ObjReader();
+
+      if (!reader.ParseFromFile(filePath, readerConfig)) {
+        if (attempt == MAX_ATTEMPTS) {
+          if (!reader.Error().empty()) {
+            TYRA_TRAP("TinyObjLoader on file ", filePath.c_str(), ": ", reader.Error());
+          }
+          TYRA_TRAP("Unknown TinyObjLoader error!");
+        }
+        TYRA_WARN("OBJ parse failed for ", filePath.c_str(), " (attempt ", attempt, "/", MAX_ATTEMPTS, "), retrying...");
+        continue;
       }
-      TYRA_TRAP("Unknown TinyObjLoader error!");
+
+      if (reader.GetMaterials().size() == 0) {
+        if (attempt == MAX_ATTEMPTS) {
+          TYRA_TRAP("No material data found in ", filePath.c_str(),
+                    "! Please add .mtl file(s) and assign them via mtlib in obj file");
+        }
+        TYRA_WARN("OBJ ", filePath.c_str(), " returned 0 materials (attempt ", attempt, "/", MAX_ATTEMPTS, "), retrying...");
+        continue;
+      }
+
+      if (attempt > 1) {
+        TYRA_WARN("OBJ ", filePath.c_str(), " loaded successfully on attempt ", attempt);
+      }
+      success = true;
+      break;
+    }
+
+    if (!success) {
+      TYRA_TRAP("OBJ load failed after all attempts: ", filePath.c_str());
     }
 
     if (!reader.Warning().empty()) {
@@ -80,11 +109,6 @@ std::unique_ptr<MeshBuilderData> ObjLoader::load(
     auto& attrib = reader.GetAttrib();
     auto& shapes = reader.GetShapes();
     auto& materials = reader.GetMaterials();
-
-    TYRA_ASSERT(
-        materials.size() > 0,
-        "No material data found! Please add .mtl file(s) and assign them via "
-        "mtlib in obj file");
 
     if (i == 1) {
       auto scanResult = scan(shapes, materials);

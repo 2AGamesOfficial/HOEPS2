@@ -57,10 +57,10 @@ u32 DynPipCore::getMaxVertCountByParams(const bool& isLightingEnabled,
 }
 
 void DynPipCore::sendObjectDataToVU1(DynPipBag* bag) {
-  RendererCoreTextureBuffers* texBuffers = nullptr;
+  RendererCoreTextureBuffers texBuffersStorage; RendererCoreTextureBuffers* texBuffers = nullptr;
   if (bag->texture) {
     auto temp = rendererCore->texture.useTexture(bag->texture->texture);
-    texBuffers = new RendererCoreTextureBuffers{temp.id, temp.core, temp.clut};
+    texBuffersStorage = {temp.id, temp.core, temp.clut}; texBuffers = &texBuffersStorage;
   }
 
   if (bag->info->transformationType == TyraMP) {
@@ -71,7 +71,7 @@ void DynPipCore::sendObjectDataToVU1(DynPipBag* bag) {
 
   qbufferRenderer.sendObjectData(bag, &mvp, texBuffers);
 
-  delete texBuffers;
+  // texBuffers now stack-allocated, no delete needed
 }
 
 void DynPipCore::begin(PipelineInfoBag* bag) {

@@ -9,6 +9,7 @@
 */
 
 #include "renderer/3d/pipeline/static/core/stapip_core.hpp"
+#include "memory/frame_arena.hpp"
 #include "renderer/core/renderer_core.hpp"
 #include "thread/threading.hpp"
 
@@ -138,10 +139,10 @@ void StaPipCore::render(StaPipBag* bag) {
     mvp = rendererCore->renderer3D.getViewProj() * *bag->info->model;
   }
 
-  RendererCoreTextureBuffers* texBuffers = nullptr;
+  RendererCoreTextureBuffers texBuffersStorage; RendererCoreTextureBuffers* texBuffers = nullptr;
   if (bag->texture) {
     auto temp = rendererCore->texture.useTexture(bag->texture->texture);
-    texBuffers = new RendererCoreTextureBuffers{temp.id, temp.core, temp.clut};
+    texBuffersStorage = {temp.id, temp.core, temp.clut}; texBuffers = &texBuffersStorage;
   }
 
   qbufferRenderer.clearLastProgramName();
@@ -180,7 +181,7 @@ void StaPipCore::render(StaPipBag* bag) {
       buffer->fillByPointer(biggerPkgs[i]);
       qbufferRenderer.cull(buffer);
     }
-    delete[] biggerPkgs;
+    // arena handles delete[] biggerPkgs
   } else if (checkYesFrustumPartialClipYes || checkYesFrustumPartialClipNo) {
     u16 packagesCount = 0;
     auto doClip = checkYesFrustumPartialClipYes;
@@ -188,16 +189,16 @@ void StaPipCore::render(StaPipBag* bag) {
       auto packages = packager.create(&packagesCount, bag, maxVertCount);
       Verbose("Material - partial. Packages: ", packagesCount);
       renderPkgs(packages, doClip, packagesCount);
-      delete[] packages;
+      // arena handles delete[] packages
     } else {
       auto subpkgs = packager.create(&packagesCount, bag, maxVertCount / 3);
       Verbose("Material - partial. Subpackages: ", packagesCount);
       renderSubpkgs(subpkgs, packagesCount);
-      delete[] subpkgs;
+      // arena handles delete[] subpkgs
     }
   }
 
-  if (texBuffers) delete texBuffers;
+  // texBuffers now stack-allocated, no delete needed
 
   qbufferRenderer.flushBuffers();
 
@@ -222,7 +223,7 @@ void StaPipCore::renderPkgs(StaPipBagPackage* packages, const bool& doClip,
       Verbose(i, " - partial package. Created subpkgs: ", subpkgsSize);
 
       renderSubpkgs(packages1By3, subpkgsSize);
-      delete[] packages1By3;
+      // arena handles delete[] packages1By3
     }
     Verbose(i, " - package skipped (outside)");
   }

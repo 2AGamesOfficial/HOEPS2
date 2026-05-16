@@ -1,0 +1,14 @@
+# Blood splash flat plane (1x1, lies on Y=0)
+mtllib blood.mtl
+o BloodPlane
+v -0.5 0.0 -0.5
+v  0.5 0.0 -0.5
+v -0.5 0.0  0.5
+v  0.5 0.0  0.5
+vt 0.0 0.0
+vt 1.0 0.0
+vt 0.0 1.0
+vt 1.0 1.0
+usemtl BloodMat
+f 1/1 2/2 3/3
+f 3/3 2/2 4/4

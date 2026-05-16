@@ -91,4 +91,24 @@ void AudioAdpcm::playWait(audsrv_adpcm_t* t_adpcm, const s8& t_ch) {
   }
 }
 
+
+AdpcmResult AudioAdpcm::playPooled(audsrv_adpcm_t* t_adpcm, const s8& t_base, const s8& t_size) {
+  static s8 nextCh[24] = {0};
+  s8 idx = t_base;
+  // Try each channel in pool — first free wins
+  for (s8 i = 0; i < t_size; i++) {
+    s8 ch = t_base + ((nextCh[t_base] + i) % t_size);
+    int res = audsrv_ch_play_adpcm(ch, t_adpcm);
+    if (res >= 0) {
+      nextCh[t_base] = (ch - t_base + 1) % t_size;
+      return AdpcmResult::ADPCM_OK;
+    }
+  }
+  // All busy — steal oldest (round-robin replace)
+  s8 ch = t_base + nextCh[t_base];
+  nextCh[t_base] = (nextCh[t_base] + 1) % t_size;
+  audsrv_ch_play_adpcm(ch, t_adpcm);
+  return AdpcmResult::ADPCM_OK;
+}
+
 }  // namespace Tyra

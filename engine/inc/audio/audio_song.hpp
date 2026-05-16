@@ -70,7 +70,7 @@ class AudioSong {
  private:
   bool songLoaded, songPlaying, songFinished;
   u8 tyraVolume, audsrvVolume;
-  FILE* wav;
+  int wav;
   audsrv_fmt_t format;
   std::vector<AudioListenerRef*> songListeners;
 
